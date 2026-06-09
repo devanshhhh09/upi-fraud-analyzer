@@ -112,7 +112,7 @@ def train_all_models() -> dict:
         random_state=config.RANDOM_STATE,
         C=1.0,
         solver='lbfgs',
-        multi_class='multinomial',
+
     )
     lr.fit(X_train, y_train)
 

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}UPI Fraud Analyzer{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .sidebar {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            padding: 0;
+            position: fixed;
+            width: 240px;
+            top: 0; left: 0;
+        }
+        .sidebar-brand {
+            padding: 20px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-brand h6 {
+            color: #fff;
+            font-weight: 700;
+            font-size: 14px;
+            margin: 0;
+        }
+        .sidebar-brand small { color: #adb5bd; font-size: 11px; }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.7);
+            padding: 12px 20px;
+            font-size: 14px;
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            color: #fff;
+            background: rgba(255,255,255,0.08);
+            border-left-color: #0d6efd;
+        }
+        .sidebar .nav-link i { margin-right: 8px; font-size: 16px; }
+        .main-content { margin-left: 240px; padding: 24px; }
+        .stat-card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+        }
+        .stat-card .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #0d6efd;
+        }
+        .stat-card .stat-label {
+            font-size: 13px;
+            color: #6c757d;
+            margin-top: 4px;
+        }
+        .card { border: 1px solid #e9ecef; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+        .risk-critical { background: #dc3545; color: white; }
+        .risk-high     { background: #fd7e14; color: white; }
+        .risk-medium   { background: #ffc107; color: #000; }
+        .risk-low      { background: #198754; color: white; }
+        .badge-fraud { font-size: 12px; padding: 5px 10px; border-radius: 6px; }
+        .result-box {
+            background: #1a1a2e;
+            color: #a8ff78;
+            font-family: monospace;
+            font-size: 13px;
+            padding: 20px;
+            border-radius: 8px;
+            min-height: 100px;
+        }
+        .loading { display: none; }
+        .spinner-border-sm { width: 1rem; height: 1rem; }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-brand">
+            <h6><i class="bi bi-shield-fill-check"></i> UPI Fraud Analyzer</h6>
+            <small>Gurugram Police GPCSSI 2026</small>
+        </div>
+        <nav class="nav flex-column mt-2">
+            <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </a>
+            <a href="/scanner" class="nav-link {% if request.path == '/scanner' %}active{% endif %}">
+                <i class="bi bi-search"></i> Complaint Scanner
+            </a>
+            <a href="/intel" class="nav-link {% if request.path == '/intel' %}active{% endif %}">
+                <i class="bi bi-globe"></i> URL Intel
+            </a>
+            <a href="/history" class="nav-link {% if request.path == '/history' %}active{% endif %}">
+                <i class="bi bi-clock-history"></i> Scan History
+            </a>
+        </nav>
+        <div style="position:absolute;bottom:20px;left:20px;right:20px;">
+            <small style="color:rgba(255,255,255,0.3);font-size:11px;">
+                v1.0.0 — GPCSSI 2026
+            </small>
+        </div>
+    </div>
+
+    <!-- Main content -->
+    <div class="main-content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

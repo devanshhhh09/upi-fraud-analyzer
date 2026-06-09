@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify
+from flask import Flask, jsonify, render_template
 from flask_cors import CORS
 from src.api.database import db
 from src.api.routes import api_bp
@@ -9,34 +9,43 @@ logger = get_logger(__name__)
 
 
 def create_app():
-    """Application factory — creates and configures Flask app."""
     app = Flask(__name__)
+    app.config['SECRET_KEY']                     = os.getenv('SECRET_KEY', 'dev-secret-key')
+    app.config['SQLALCHEMY_DATABASE_URI']         = 'sqlite:///upi_fraud.db'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS']  = False
+    app.config['JSON_SORT_KEYS']                  = False
 
-    # Configuration
-    app.config['SECRET_KEY']             = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///upi_fraud.db'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['JSON_SORT_KEYS']         = False
-
-    # Extensions
     CORS(app)
     db.init_app(app)
-
-    # Register blueprints
     app.register_blueprint(api_bp, url_prefix='/api')
 
-    # Create database tables
     with app.app_context():
         db.create_all()
         logger.info("Database tables created")
 
-    # Root route
+    # ── Page routes ───────────────────────────────────────────────────
     @app.route('/')
-    def index():
+    def home():
+        return render_template('index.html')
+
+    @app.route('/scanner')
+    def scanner():
+        return render_template('scanner.html')
+
+    @app.route('/intel')
+    def intel():
+        return render_template('intel.html')
+
+    @app.route('/history')
+    def history():
+        return render_template('history.html')
+
+    # ── API root ──────────────────────────────────────────────────────
+    @app.route('/api')
+    def api_root():
         return jsonify({
-            'service':  'UPI Fraud Pattern Analyzer',
-            'version':  '1.0.0',
-            'status':   'running',
+            'service':   'UPI Fraud Pattern Analyzer',
+            'version':   '1.0.0',
             'endpoints': [
                 'GET  /api/health',
                 'POST /api/predict',
@@ -57,7 +66,8 @@ def create_app():
     return app
 
 
+app = create_app()
+
 if __name__ == '__main__':
-    app = create_app()
     logger.info("Starting UPI Fraud Analyzer API...")
     app.run(debug=True, host='0.0.0.0', port=5001)

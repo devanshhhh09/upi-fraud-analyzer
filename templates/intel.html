@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}URL Intelligence{% endblock %}
+
+{% block content %}
+<h4 class="fw-bold mb-1">URL Threat Intelligence</h4>
+<p class="text-muted mb-4">Analyze suspicious URLs for fraud indicators, WHOIS data, and blacklist status.</p>
+
+<div class="row g-4">
+    <div class="col-md-5">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3">Enter URL</h6>
+            <div class="mb-3">
+                <input type="text" class="form-control" id="url-input"
+                       placeholder="https://example-fraud-site.xyz">
+            </div>
+            <button class="btn btn-danger w-100" onclick="runIntel()" id="intel-btn">
+                <i class="bi bi-shield-exclamation"></i> Analyze URL
+            </button>
+            <div class="mt-3">
+                <small class="text-muted">Try a sample:</small><br>
+                <button class="btn btn-sm btn-outline-danger mt-1 me-1"
+                    onclick="loadUrl('https://sbi-kyc-update.xyz')">SBI Fake</button>
+                <button class="btn btn-sm btn-outline-danger mt-1 me-1"
+                    onclick="loadUrl('https://hdfc-bank-verify.tk')">HDFC Fake</button>
+                <button class="btn btn-sm btn-outline-success mt-1"
+                    onclick="loadUrl('https://www.google.com')">Google (safe)</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div id="intel-result" style="display:none">
+
+            <!-- Risk badge -->
+            <div class="card p-3 mb-3 text-center">
+                <div id="risk-badge" class="badge fs-4 p-3 mb-1">—</div>
+                <div>Risk Score: <strong id="risk-score">—</strong>/100</div>
+            </div>
+
+            <!-- Risk indicators -->
+            <div class="card p-3 mb-3">
+                <h6 class="fw-bold mb-2">Risk Indicators</h6>
+                <ul id="risk-indicators" class="list-unstyled mb-0"></ul>
+            </div>
+
+            <!-- WHOIS -->
+            <div class="card p-3 mb-3">
+                <h6 class="fw-bold mb-2">WHOIS Information</h6>
+                <table class="table table-sm mb-0">
+                    <tr><td class="text-muted">Domain</td><td id="w-domain">—</td></tr>
+                    <tr><td class="text-muted">Registrar</td><td id="w-registrar">—</td></tr>
+                    <tr><td class="text-muted">Created</td><td id="w-created">—</td></tr>
+                    <tr><td class="text-muted">Age</td><td id="w-age">—</td></tr>
+                    <tr><td class="text-muted">Country</td><td id="w-country">—</td></tr>
+                </table>
+            </div>
+
+            <!-- Blacklist -->
+            <div class="card p-3">
+                <h6 class="fw-bold mb-2">Blacklist Status</h6>
+                <div id="blacklist-status"></div>
+            </div>
+        </div>
+
+        <div id="intel-placeholder" class="card p-5 text-center text-muted">
+            <i class="bi bi-shield-check" style="font-size:48px;opacity:0.3"></i>
+            <p class="mt-3">Enter a URL to begin threat intelligence analysis</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function loadUrl(url) {
+    document.getElementById('url-input').value = url;
+}
+
+async function runIntel() {
+    const url = document.getElementById('url-input').value.trim();
+    if (!url) { alert('Please enter a URL'); return; }
+
+    const btn = document.getElementById('intel-btn');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing...';
+    btn.disabled  = true;
+
+    const res  = await fetch('/api/intel', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json'},
+        body:    JSON.stringify({url}),
+    });
+    const data = await res.json();
+
+    btn.innerHTML = '<i class="bi bi-shield-exclamation"></i> Analyze URL';
+    btn.disabled  = false;
+
+    if (data.error) { alert('Error: ' + data.error); return; }
+
+    document.getElementById('intel-placeholder').style.display = 'none';
+    document.getElementById('intel-result').style.display      = 'block';
+
+    // Risk badge
+    const riskColors = {CRITICAL:'#dc3545', HIGH:'#fd7e14', MEDIUM:'#ffc107', LOW:'#198754'};
+    const badge = document.getElementById('risk-badge');
+    badge.textContent         = data.risk_level;
+    badge.style.background    = riskColors[data.risk_level] || '#6c757d';
+    badge.style.color         = data.risk_level === 'MEDIUM' ? '#000' : '#fff';
+    document.getElementById('risk-score').textContent = data.risk_score;
+
+    // Indicators
+    const ul = document.getElementById('risk-indicators');
+    ul.innerHTML = '';
+    if (data.indicators?.length) {
+        data.indicators.forEach(ind => {
+            ul.innerHTML += `<li><i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>${ind}</li>`;
+        });
+    } else {
+        ul.innerHTML = '<li><i class="bi bi-check-circle-fill text-success me-2"></i>No risk indicators found</li>';
+    }
+
+    // WHOIS
+    document.getElementById('w-domain').textContent    = data.domain || '—';
+    document.getElementById('w-registrar').textContent = data.whois?.registrar || '—';
+    document.getElementById('w-created').textContent   = data.whois?.creation_date || 'Unknown';
+    document.getElementById('w-age').textContent       = data.whois?.domain_age_days
+        ? data.whois.domain_age_days + ' days' : 'Unknown';
+    document.getElementById('w-country').textContent   = data.whois?.country || '—';
+
+    // Blacklist
+    const blEl    = document.getElementById('blacklist-status');
+    const blFound = data.blacklist_status === 'FOUND';
+    blEl.innerHTML = `
+        <span class="badge ${blFound ? 'bg-danger' : 'bg-success'} p-2">
+            <i class="bi bi-${blFound ? 'x-circle' : 'check-circle'}-fill me-1"></i>
+            ${data.blacklist_status}
+        </span>
+        ${blFound ? '<small class="ms-2 text-muted">Found in: ' + data.blacklist_sources?.join(', ') + '</small>' : ''}
+    `;
+}
+</script>
+{% endblock %}

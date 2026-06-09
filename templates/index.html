@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — UPI Fraud Analyzer{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-1 fw-bold">Fraud Intelligence Dashboard</h4>
+        <small class="text-muted">UPI Fraud Pattern Analyzer — GPCSSI 2026</small>
+    </div>
+    <span class="badge bg-success">API Online</span>
+</div>
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4" id="stats-row">
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-number" id="total-records">—</div>
+            <div class="stat-label"><i class="bi bi-database"></i> Total Records</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-number" id="labelled-records">—</div>
+            <div class="stat-label"><i class="bi bi-tag"></i> Labelled Records</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-number">8</div>
+            <div class="stat-label"><i class="bi bi-diagram-3"></i> Fraud Types</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card">
+            <div class="stat-number">93.8%</div>
+            <div class="stat-label"><i class="bi bi-bullseye"></i> Model Precision</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts row -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card p-3">
+            <h6 class="fw-bold mb-3">Fraud Type Distribution</h6>
+            <canvas id="fraudChart" height="250"></canvas>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card p-3">
+            <h6 class="fw-bold mb-3">Data Sources</h6>
+            <canvas id="sourceChart" height="250"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Quick scan -->
+<div class="card p-4">
+    <h6 class="fw-bold mb-3"><i class="bi bi-lightning-fill text-warning"></i> Quick Complaint Scan</h6>
+    <div class="input-group">
+        <input type="text" class="form-control" id="quick-input"
+               placeholder="Paste complaint text here...">
+        <button class="btn btn-primary" onclick="quickScan()">
+            <i class="bi bi-search"></i> Scan
+        </button>
+    </div>
+    <div id="quick-result" class="mt-3" style="display:none">
+        <div class="alert alert-info" id="quick-result-text"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const FRAUD_COLORS = [
+    '#0d6efd','#6610f2','#d63384','#dc3545',
+    '#fd7e14','#ffc107','#198754','#0dcaf0'
+];
+
+async function loadStats() {
+    const res  = await fetch('/api/trends');
+    const data = await res.json();
+
+    document.getElementById('total-records').textContent    = data.total_records;
+    document.getElementById('labelled-records').textContent = data.labelled_records;
+
+    // Fraud type chart
+    const ftLabels = Object.keys(data.fraud_type_counts).map(
+        k => k.replace(/_/g,' ')
+    );
+    const ftValues = Object.values(data.fraud_type_counts);
+
+    new Chart(document.getElementById('fraudChart'), {
+        type: 'bar',
+        data: {
+            labels:   ftLabels,
+            datasets: [{
+                label:           'Records',
+                data:            ftValues,
+                backgroundColor: FRAUD_COLORS,
+                borderRadius:    6,
+            }]
+        },
+        options: {
+            plugins: { legend: { display: false } },
+            scales:  { y: { beginAtZero: true } },
+        }
+    });
+
+    // Source chart
+    new Chart(document.getElementById('sourceChart'), {
+        type: 'doughnut',
+        data: {
+            labels:   Object.keys(data.source_counts),
+            datasets: [{
+                data:            Object.values(data.source_counts),
+                backgroundColor: ['#0d6efd','#198754','#ffc107'],
+                borderWidth:     2,
+            }]
+        },
+        options: { plugins: { legend: { position: 'bottom' } } }
+    });
+}
+
+async function quickScan() {
+    const text = document.getElementById('quick-input').value.trim();
+    if (!text) return;
+
+    const res  = await fetch('/api/predict', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json'},
+        body:    JSON.stringify({text})
+    });
+    const data = await res.json();
+
+    const el = document.getElementById('quick-result');
+    el.style.display = 'block';
+    document.getElementById('quick-result-text').innerHTML =
+        `<strong>Prediction:</strong> ${data.prediction?.replace(/_/g,' ').toUpperCase()} &nbsp;
+         <strong>Confidence:</strong> ${data.confidence}% &nbsp;
+         <strong>Risk Score:</strong> ${data.risk_score}/100`;
+}
+
+loadStats();
+</script>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Complaint Scanner{% endblock %}
+
+{% block content %}
+<h4 class="fw-bold mb-1">Complaint Scanner</h4>
+<p class="text-muted mb-4">Paste a fraud complaint to classify it and get an explanation.</p>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card p-4">
+            <h6 class="fw-bold mb-3">Enter Complaint</h6>
+            <div class="mb-3">
+                <label class="form-label text-muted small">Title (optional)</label>
+                <input type="text" class="form-control" id="scan-title"
+                       placeholder="e.g. KYC fraud complaint">
+            </div>
+            <div class="mb-3">
+                <label class="form-label text-muted small">Complaint Text *</label>
+                <textarea class="form-control" id="scan-text" rows="8"
+                    placeholder="Paste the full complaint text here...&#10;&#10;e.g. I received a call from someone claiming to be from SBI. They said my account will be blocked unless I complete KYC. They sent an OTP and asked me to share it..."></textarea>
+            </div>
+            <button class="btn btn-primary w-100" onclick="runScan()" id="scan-btn">
+                <i class="bi bi-search"></i> Analyze Complaint
+            </button>
+
+            <!-- Sample complaints -->
+            <div class="mt-3">
+                <small class="text-muted">Try a sample:</small><br>
+                <button class="btn btn-sm btn-outline-secondary mt-1 me-1"
+                    onclick="loadSample('otp')">OTP Relay</button>
+                <button class="btn btn-sm btn-outline-secondary mt-1 me-1"
+                    onclick="loadSample('qr')">QR Swap</button>
+                <button class="btn btn-sm btn-outline-secondary mt-1"
+                    onclick="loadSample('invest')">Investment Scam</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card p-4" id="result-card" style="display:none">
+            <h6 class="fw-bold mb-3">Analysis Result</h6>
+
+            <!-- Prediction badge -->
+            <div class="text-center mb-4">
+                <div id="pred-badge" class="badge fs-5 p-3 mb-2" style="background:#0d6efd">—</div>
+                <div>
+                    <small class="text-muted">Confidence: </small>
+                    <strong id="pred-confidence">—</strong>
+                    <small class="text-muted ms-2">Risk Score: </small>
+                    <strong id="pred-risk">—</strong>/100
+                </div>
+            </div>
+
+            <!-- Probability bars -->
+            <h6 class="small fw-bold text-muted mb-2">PROBABILITY BREAKDOWN</h6>
+            <div id="prob-bars" class="mb-3"></div>
+
+            <!-- Processing time -->
+            <small class="text-muted" id="proc-time"></small>
+        </div>
+
+        <div class="card p-4 mt-3">
+            <h6 class="fw-bold mb-3">Search Complaints</h6>
+            <div class="input-group mb-3">
+                <input type="text" class="form-control" id="search-input"
+                       placeholder="Search by keyword...">
+                <button class="btn btn-outline-primary" onclick="searchComplaints()">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+            <div id="search-results"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const SAMPLES = {
+    otp:    {title:'OTP Fraud', text:'I received a call from someone claiming to be from HDFC Bank. They said my account will be blocked for KYC update. They asked for OTP sent to my phone. I shared it and Rs 45000 was immediately debited from my account.'},
+    qr:     {title:'QR Code Fraud', text:'I went to pay at a petrol pump and scanned the QR code displayed on the counter. Later I found out the QR code was a fake sticker pasted over the original. Rs 1200 went to an unknown account instead of the petrol pump owner.'},
+    invest: {title:'Investment Scam', text:'I joined a Telegram group that promised 30 percent weekly returns on investment through a trading app. I invested Rs 50000 over two months. The app showed good profits but when I tried to withdraw nothing happened and the app disappeared.'},
+};
+
+function loadSample(type) {
+    document.getElementById('scan-title').value = SAMPLES[type].title;
+    document.getElementById('scan-text').value  = SAMPLES[type].text;
+}
+
+async function runScan() {
+    const text  = document.getElementById('scan-text').value.trim();
+    const title = document.getElementById('scan-title').value.trim();
+    if (!text) { alert('Please enter complaint text'); return; }
+
+    const btn = document.getElementById('scan-btn');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing...';
+    btn.disabled  = true;
+
+    const res  = await fetch('/api/predict', {
+        method:  'POST',
+        headers: {'Content-Type': 'application/json'},
+        body:    JSON.stringify({text, title}),
+    });
+    const data = await res.json();
+
+    btn.innerHTML = '<i class="bi bi-search"></i> Analyze Complaint';
+    btn.disabled  = false;
+
+    if (data.error) { alert('Error: ' + data.error); return; }
+
+    // Show result card
+    document.getElementById('result-card').style.display = 'block';
+    document.getElementById('pred-badge').textContent =
+        data.prediction.replace(/_/g,' ').toUpperCase();
+    document.getElementById('pred-confidence').textContent = data.confidence + '%';
+    document.getElementById('pred-risk').textContent       = data.risk_score;
+    document.getElementById('proc-time').textContent =
+        `Processed in ${data.processing_time_ms}ms`;
+
+    // Probability bars
+    const bars = document.getElementById('prob-bars');
+    bars.innerHTML = '';
+    const sorted = Object.entries(data.all_probabilities)
+        .sort((a,b) => b[1]-a[1]);
+    sorted.forEach(([type, prob]) => {
+        bars.innerHTML += `
+            <div class="mb-1">
+                <div class="d-flex justify-content-between">
+                    <small>${type.replace(/_/g,' ')}</small>
+                    <small>${prob}%</small>
+                </div>
+                <div class="progress" style="height:6px">
+                    <div class="progress-bar" style="width:${prob}%"></div>
+                </div>
+            </div>`;
+    });
+}
+
+async function searchComplaints() {
+    const q   = document.getElementById('search-input').value.trim();
+    if (!q) return;
+    const res  = await fetch(`/api/search?q=${encodeURIComponent(q)}&limit=5`);
+    const data = await res.json();
+    const el   = document.getElementById('search-results');
+    if (!data.results?.length) {
+        el.innerHTML = '<small class="text-muted">No results found.</small>';
+        return;
+    }
+    el.innerHTML = `<small class="text-muted">${data.count} results found</small>`;
+    data.results.forEach(r => {
+        el.innerHTML += `
+            <div class="border rounded p-2 mt-2">
+                <div class="d-flex justify-content-between">
+                    <small class="fw-bold">${r.title || 'Untitled'}</small>
+                    <span class="badge bg-secondary" style="font-size:10px">${r.fraud_type}</span>
+                </div>
+                <small class="text-muted">${r.text.substring(0,120)}...</small>
+            </div>`;
+    });
+}
+</script>
+{% endblock %}

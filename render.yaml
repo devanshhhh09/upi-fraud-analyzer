@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: upi-fraud-analyzer
+    runtime: python
+    buildCommand: pip install -r requirements.txt && bash build.sh
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.15
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHONPATH
+        value: /opt/render/project/src

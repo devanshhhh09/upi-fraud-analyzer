@@ -10,10 +10,12 @@ logger = get_logger(__name__)
 
 def create_app():
     app = Flask(__name__)
-    app.config['SECRET_KEY']                     = os.getenv('SECRET_KEY', 'dev-secret-key')
-    app.config['SQLALCHEMY_DATABASE_URI']         = 'sqlite:///upi_fraud.db'
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS']  = False
-    app.config['JSON_SORT_KEYS']                  = False
+    app.config['SECRET_KEY']                    = os.getenv('SECRET_KEY', 'dev-secret-key')
+    app.config['SQLALCHEMY_DATABASE_URI']        = os.getenv(
+        'DATABASE_URL', 'sqlite:///upi_fraud.db'
+    )
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['JSON_SORT_KEYS']                 = False
 
     CORS(app)
     db.init_app(app)
@@ -23,7 +25,6 @@ def create_app():
         db.create_all()
         logger.info("Database tables created")
 
-    # ── Page routes ───────────────────────────────────────────────────
     @app.route('/')
     def home():
         return render_template('index.html')
@@ -40,7 +41,6 @@ def create_app():
     def history():
         return render_template('history.html')
 
-    # ── API root ──────────────────────────────────────────────────────
     @app.route('/api')
     def api_root():
         return jsonify({
@@ -52,6 +52,8 @@ def create_app():
                 'POST /api/intel',
                 'GET  /api/trends',
                 'GET  /api/search?q=keyword',
+                'GET  /api/history',
+                'GET  /api/stats',
             ]
         })
 
@@ -69,7 +71,6 @@ def create_app():
 app = create_app()
 
 if __name__ == '__main__':
-    import os
     port  = int(os.getenv('PORT', 5001))
     debug = os.getenv('FLASK_ENV', 'development') != 'production'
     logger.info(f"Starting UPI Fraud Analyzer API on port {port}...")

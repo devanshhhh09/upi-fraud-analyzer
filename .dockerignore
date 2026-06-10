@@ -1,0 +1,41 @@
+# Virtual environment
+venv/
+
+# Git
+.git/
+.gitignore
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Test cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/
+
+# Environment files
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Raw data (mounted as volume)
+data/raw/
+data/processed/
+data/features/
+
+# Logs
+reports/app.log
+
+# IDE
+.vscode/
+.idea/

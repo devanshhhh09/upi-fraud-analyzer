@@ -69,5 +69,8 @@ def create_app():
 app = create_app()
 
 if __name__ == '__main__':
-    logger.info("Starting UPI Fraud Analyzer API...")
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    import os
+    port  = int(os.getenv('PORT', 5001))
+    debug = os.getenv('FLASK_ENV', 'development') != 'production'
+    logger.info(f"Starting UPI Fraud Analyzer API on port {port}...")
+    app.run(debug=debug, host='0.0.0.0', port=port)
